@@ -442,7 +442,7 @@
             const clawArm = document.getElementById('clawArm');
             
             // Extend arm
-            clawArm.style.height = '300px';
+            clawArm.style.height = '450px';
             
             setTimeout(() => {
                 // Close claw
@@ -479,10 +479,10 @@
             const containerRect = container.getBoundingClientRect();
             const clawCenterX = clawRect.left + clawRect.width / 2 - containerRect.left;
             
-            // When extended, the claw is at the bottom of the 300px arm
-            // The claw machine starts at 20px from top, so extended position is 20 + 50 + 300 = 370px from top
-            // Convert to bottom position: 600 - 370 = 230px from bottom
-            const extendedClawY = 230;
+            // When extended, the claw is at the bottom of the 450px arm
+            // The claw machine starts at 20px from top, so extended position is 20 + 50 + 450 = 520px from top
+            // Convert to bottom position: 600 - 520 = 80px from bottom
+            const extendedClawY = 80;
             
             prizes.forEach(prize => {
                 if (prize.classList.contains('caught')) return;
@@ -508,6 +508,13 @@
                     
                     setTimeout(() => {
                         prize.remove();
+                        // Remove from prizes array
+                        const index = prizes.indexOf(prize);
+                        if (index > -1) {
+                            prizes.splice(index, 1);
+                        }
+                        // Spawn a new prize to replace the caught one
+                        createSinglePrize();
                     }, 1000);
                 }
             });
