@@ -145,6 +145,36 @@
             animation: scoreGlow 3s ease-in-out infinite;
         }
 
+        .timer-board {
+            position: absolute;
+            top: 50px;
+            right: 10px;
+            color: #ffd700;
+            font-size: 20px;
+            font-weight: bold;
+            text-shadow: 0 0 10px #ffd700, 0 0 20px #ff6b6b, 0 0 30px #4ecdc4;
+            animation: scoreGlow 3s ease-in-out infinite;
+        }
+
+        .timer-board.fever {
+            color: #ff6b6b;
+            font-size: 24px;
+            animation: feverGlow 0.5s ease-in-out infinite;
+        }
+
+        @keyframes feverGlow {
+            0%, 100% { 
+                color: #ff6b6b;
+                text-shadow: 0 0 15px #ff6b6b, 0 0 30px #ffd700;
+                transform: scale(1);
+            }
+            50% { 
+                color: #ffd700;
+                text-shadow: 0 0 25px #ffd700, 0 0 40px #ff6b6b;
+                transform: scale(1.1);
+            }
+        }
+
         @keyframes scoreGlow {
             0%, 100% { color: #ffd700; }
             33% { color: #ff6b6b; }
@@ -266,6 +296,7 @@
     <div class="game-container">
         <a href="index.html" class="home-button">← ホームに戻る</a>
         <div class="score-board">Score: <span id="score">0</span></div>
+        <div class="timer-board" id="timerBoard">Time: <span id="timer">20</span>s</div>
         
         <div class="claw-machine" id="clawMachine">
             <div class="claw-arm" id="clawArm"></div>
@@ -295,6 +326,10 @@
         let isDropping = false;
         let prizes = [];
         let gameActive = true;
+        let timeLeft = 20;
+        let gameTimer = null;
+        let isFeverTime = false;
+        let feverSpawnTimer = null;
 
         // Create starry background
         function createStars() {
@@ -323,6 +358,57 @@
                 container.appendChild(prize);
                 prizes.push(prize);
             }
+        }
+
+        // Create single prize (for fever time)
+        function createSinglePrize() {
+            const prizeTypes = ['alien', 'robot', 'star'];
+            const container = document.querySelector('.game-container');
+            
+            const prize = document.createElement('div');
+            prize.className = `prize ${prizeTypes[Math.floor(Math.random() * prizeTypes.length)]}`;
+            prize.style.left = Math.random() * 700 + 50 + 'px';
+            prize.style.bottom = Math.random() * 200 + 50 + 'px';
+            prize.dataset.points = Math.floor(Math.random() * 3 + 1) * 10;
+            container.appendChild(prize);
+            prizes.push(prize);
+        }
+
+        // Start game timer
+        function startTimer() {
+            gameTimer = setInterval(() => {
+                timeLeft--;
+                updateTimer();
+                
+                // Start fever time at 10 seconds
+                if (timeLeft === 10 && !isFeverTime) {
+                    startFeverTime();
+                }
+                
+                // End game when timer reaches 0
+                if (timeLeft <= 0) {
+                    endGame();
+                }
+            }, 1000);
+        }
+
+        // Start fever time
+        function startFeverTime() {
+            isFeverTime = true;
+            const timerBoard = document.getElementById('timerBoard');
+            timerBoard.classList.add('fever');
+            
+            // Spawn new prizes every 0.8 seconds during fever time
+            feverSpawnTimer = setInterval(() => {
+                if (gameActive && timeLeft > 0) {
+                    createSinglePrize();
+                }
+            }, 800);
+        }
+
+        // Update timer display
+        function updateTimer() {
+            document.getElementById('timer').textContent = timeLeft;
         }
 
         // Move claw left
@@ -374,8 +460,8 @@
                         claw.classList.add('open');
                         isDropping = false;
                         
-                        // Check if game is over
-                        if (prizes.filter(p => !p.classList.contains('caught')).length === 0) {
+                        // Check if game is over (all prizes caught or timer expired)
+                        if (prizes.filter(p => !p.classList.contains('caught')).length === 0 || timeLeft <= 0) {
                             endGame();
                         }
                     }, 500);
@@ -435,6 +521,17 @@
         // End game
         function endGame() {
             gameActive = false;
+            
+            // Clear timers
+            if (gameTimer) {
+                clearInterval(gameTimer);
+                gameTimer = null;
+            }
+            if (feverSpawnTimer) {
+                clearInterval(feverSpawnTimer);
+                feverSpawnTimer = null;
+            }
+            
             document.getElementById('finalScore').textContent = score;
             document.getElementById('gameOver').style.display = 'block';
         }
@@ -445,6 +542,18 @@
             clawPosition = 50;
             isDropping = false;
             gameActive = true;
+            timeLeft = 20;
+            isFeverTime = false;
+            
+            // Clear timers
+            if (gameTimer) {
+                clearInterval(gameTimer);
+                gameTimer = null;
+            }
+            if (feverSpawnTimer) {
+                clearInterval(feverSpawnTimer);
+                feverSpawnTimer = null;
+            }
             
             // Remove old prizes
             prizes.forEach(prize => prize.remove());
@@ -455,12 +564,17 @@
             
             // Reset UI
             updateScore();
+            updateTimer();
             updateClawPosition();
             document.getElementById('gameOver').style.display = 'none';
+            document.getElementById('timerBoard').classList.remove('fever');
             
             // Create new game
             createStars();
             createPrizes();
+            
+            // Start timer
+            startTimer();
         }
 
         // Keyboard controls
@@ -476,6 +590,7 @@
         // Initialize game
         createStars();
         createPrizes();
+        startTimer();
     </script>
 </body>
 </html>
