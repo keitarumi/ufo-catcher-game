@@ -307,19 +307,31 @@
         // Check if claw caught anything
         function checkCatch() {
             const clawMachine = document.getElementById('clawMachine');
+            const container = document.querySelector('.game-container');
+            
+            // Get claw position relative to container
             const clawRect = clawMachine.getBoundingClientRect();
-            const clawCenter = clawRect.left + clawRect.width / 2;
+            const containerRect = container.getBoundingClientRect();
+            const clawCenterX = clawRect.left + clawRect.width / 2 - containerRect.left;
+            
+            // When extended, the claw is at the bottom of the 300px arm
+            // The claw machine starts at 20px from top, so extended position is 20 + 50 + 300 = 370px from top
+            // Convert to bottom position: 600 - 370 = 230px from bottom
+            const extendedClawY = 230;
             
             prizes.forEach(prize => {
                 if (prize.classList.contains('caught')) return;
                 
                 const prizeRect = prize.getBoundingClientRect();
-                const prizeCenter = prizeRect.left + prizeRect.width / 2;
+                const prizeCenterX = prizeRect.left + prizeRect.width / 2 - containerRect.left;
+                const prizeBottom = parseInt(prize.style.bottom);
+                const prizeTop = prizeBottom + 50; // prize height is 50px
                 
-                // Check if claw is above prize
-                if (Math.abs(clawCenter - prizeCenter) < 40 && 
-                    clawRect.bottom > prizeRect.top - 50) {
-                    
+                // Check if claw overlaps with prize (both X and Y axis)
+                const horizontalOverlap = Math.abs(clawCenterX - prizeCenterX) < 50; // allow 50px tolerance
+                const verticalOverlap = (extendedClawY >= prizeBottom - 20) && (extendedClawY <= prizeTop + 20); // 20px tolerance
+                
+                if (horizontalOverlap && verticalOverlap) {
                     // Caught a prize!
                     prize.classList.add('caught');
                     score += parseInt(prize.dataset.points);
