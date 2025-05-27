@@ -1,0 +1,390 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>UFO Catcher Game</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            background: linear-gradient(to bottom, #000428, #004e92);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            font-family: Arial, sans-serif;
+            overflow: hidden;
+        }
+
+        .game-container {
+            width: 800px;
+            height: 600px;
+            position: relative;
+            background: #001a33;
+            border: 5px solid #00ffff;
+            border-radius: 20px;
+            box-shadow: 0 0 30px #00ffff;
+            overflow: hidden;
+        }
+
+        .claw-machine {
+            position: absolute;
+            width: 80px;
+            height: 100px;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            transition: left 0.3s ease;
+        }
+
+        .claw-arm {
+            width: 4px;
+            height: 50px;
+            background: #silver;
+            margin: 0 auto;
+            background: linear-gradient(to bottom, #c0c0c0, #808080);
+            transition: height 0.5s ease;
+        }
+
+        .claw {
+            width: 60px;
+            height: 40px;
+            position: relative;
+            margin: 0 auto;
+        }
+
+        .claw-left, .claw-right {
+            position: absolute;
+            width: 25px;
+            height: 30px;
+            background: linear-gradient(to bottom, #c0c0c0, #808080);
+            border-radius: 0 0 10px 10px;
+            transition: transform 0.3s ease;
+        }
+
+        .claw-left {
+            left: 0;
+            transform-origin: top left;
+        }
+
+        .claw-right {
+            right: 0;
+            transform-origin: top right;
+        }
+
+        .claw.open .claw-left {
+            transform: rotate(-20deg);
+        }
+
+        .claw.open .claw-right {
+            transform: rotate(20deg);
+        }
+
+        .prize {
+            position: absolute;
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .prize.caught {
+            pointer-events: none;
+        }
+
+        .prize.alien {
+            background: radial-gradient(circle, #00ff00, #008000);
+            box-shadow: 0 0 20px #00ff00;
+        }
+
+        .prize.robot {
+            background: radial-gradient(circle, #ff0080, #800040);
+            box-shadow: 0 0 20px #ff0080;
+            border-radius: 10px;
+        }
+
+        .prize.star {
+            background: radial-gradient(circle, #ffff00, #ff8800);
+            box-shadow: 0 0 20px #ffff00;
+            clip-path: polygon(50% 0%, 61% 35%, 98% 35%, 68% 57%, 79% 91%, 50% 70%, 21% 91%, 32% 57%, 2% 35%, 39% 35%);
+        }
+
+        .score-board {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            color: #00ffff;
+            font-size: 24px;
+            text-shadow: 0 0 10px #00ffff;
+        }
+
+        .controls {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            gap: 10px;
+        }
+
+        button {
+            padding: 10px 20px;
+            font-size: 16px;
+            background: #00ffff;
+            color: #000;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-weight: bold;
+        }
+
+        button:hover {
+            background: #00cccc;
+            transform: scale(1.05);
+        }
+
+        button:active {
+            transform: scale(0.95);
+        }
+
+        .game-over {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0, 0, 0, 0.9);
+            color: #00ffff;
+            padding: 30px;
+            border-radius: 10px;
+            text-align: center;
+            display: none;
+            z-index: 1000;
+        }
+
+        .game-over h2 {
+            margin: 0 0 20px 0;
+            font-size: 36px;
+        }
+
+        .star-background {
+            position: absolute;
+            width: 2px;
+            height: 2px;
+            background: white;
+            border-radius: 50%;
+            animation: twinkle 3s infinite;
+        }
+
+        @keyframes twinkle {
+            0%, 100% { opacity: 0; }
+            50% { opacity: 1; }
+        }
+    </style>
+</head>
+<body>
+    <div class="game-container">
+        <div class="score-board">Score: <span id="score">0</span></div>
+        
+        <div class="claw-machine" id="clawMachine">
+            <div class="claw-arm" id="clawArm"></div>
+            <div class="claw open" id="claw">
+                <div class="claw-left"></div>
+                <div class="claw-right"></div>
+            </div>
+        </div>
+
+        <div class="controls">
+            <button onclick="moveLeft()">← Left</button>
+            <button onclick="moveRight()">Right →</button>
+            <button onclick="dropClaw()">Drop Claw</button>
+            <button onclick="resetGame()">Reset</button>
+        </div>
+
+        <div class="game-over" id="gameOver">
+            <h2>Game Over!</h2>
+            <p>Final Score: <span id="finalScore">0</span></p>
+            <button onclick="resetGame()">Play Again</button>
+        </div>
+    </div>
+
+    <script>
+        let score = 0;
+        let clawPosition = 50;
+        let isDropping = false;
+        let prizes = [];
+        let gameActive = true;
+
+        // Create starry background
+        function createStars() {
+            const container = document.querySelector('.game-container');
+            for (let i = 0; i < 30; i++) {
+                const star = document.createElement('div');
+                star.className = 'star-background';
+                star.style.left = Math.random() * 100 + '%';
+                star.style.top = Math.random() * 100 + '%';
+                star.style.animationDelay = Math.random() * 3 + 's';
+                container.appendChild(star);
+            }
+        }
+
+        // Create prizes
+        function createPrizes() {
+            const prizeTypes = ['alien', 'robot', 'star'];
+            const container = document.querySelector('.game-container');
+            
+            for (let i = 0; i < 8; i++) {
+                const prize = document.createElement('div');
+                prize.className = `prize ${prizeTypes[Math.floor(Math.random() * prizeTypes.length)]}`;
+                prize.style.left = Math.random() * 700 + 50 + 'px';
+                prize.style.bottom = Math.random() * 200 + 50 + 'px';
+                prize.dataset.points = Math.floor(Math.random() * 3 + 1) * 10;
+                container.appendChild(prize);
+                prizes.push(prize);
+            }
+        }
+
+        // Move claw left
+        function moveLeft() {
+            if (!isDropping && gameActive && clawPosition > 10) {
+                clawPosition -= 10;
+                updateClawPosition();
+            }
+        }
+
+        // Move claw right
+        function moveRight() {
+            if (!isDropping && gameActive && clawPosition < 90) {
+                clawPosition += 10;
+                updateClawPosition();
+            }
+        }
+
+        // Update claw position
+        function updateClawPosition() {
+            const clawMachine = document.getElementById('clawMachine');
+            clawMachine.style.left = clawPosition + '%';
+        }
+
+        // Drop the claw
+        function dropClaw() {
+            if (isDropping || !gameActive) return;
+            
+            isDropping = true;
+            const claw = document.getElementById('claw');
+            const clawArm = document.getElementById('clawArm');
+            
+            // Extend arm
+            clawArm.style.height = '300px';
+            
+            setTimeout(() => {
+                // Close claw
+                claw.classList.remove('open');
+                
+                // Check for catches
+                checkCatch();
+                
+                setTimeout(() => {
+                    // Retract arm
+                    clawArm.style.height = '50px';
+                    
+                    setTimeout(() => {
+                        // Open claw
+                        claw.classList.add('open');
+                        isDropping = false;
+                        
+                        // Check if game is over
+                        if (prizes.filter(p => !p.classList.contains('caught')).length === 0) {
+                            endGame();
+                        }
+                    }, 500);
+                }, 500);
+            }, 500);
+        }
+
+        // Check if claw caught anything
+        function checkCatch() {
+            const clawMachine = document.getElementById('clawMachine');
+            const clawRect = clawMachine.getBoundingClientRect();
+            const clawCenter = clawRect.left + clawRect.width / 2;
+            
+            prizes.forEach(prize => {
+                if (prize.classList.contains('caught')) return;
+                
+                const prizeRect = prize.getBoundingClientRect();
+                const prizeCenter = prizeRect.left + prizeRect.width / 2;
+                
+                // Check if claw is above prize
+                if (Math.abs(clawCenter - prizeCenter) < 40 && 
+                    clawRect.bottom > prizeRect.top - 50) {
+                    
+                    // Caught a prize!
+                    prize.classList.add('caught');
+                    score += parseInt(prize.dataset.points);
+                    updateScore();
+                    
+                    // Animate prize up with claw
+                    prize.style.bottom = '500px';
+                    prize.style.opacity = '0';
+                    
+                    setTimeout(() => {
+                        prize.remove();
+                    }, 1000);
+                }
+            });
+        }
+
+        // Update score display
+        function updateScore() {
+            document.getElementById('score').textContent = score;
+        }
+
+        // End game
+        function endGame() {
+            gameActive = false;
+            document.getElementById('finalScore').textContent = score;
+            document.getElementById('gameOver').style.display = 'block';
+        }
+
+        // Reset game
+        function resetGame() {
+            score = 0;
+            clawPosition = 50;
+            isDropping = false;
+            gameActive = true;
+            
+            // Remove old prizes
+            prizes.forEach(prize => prize.remove());
+            prizes = [];
+            
+            // Remove stars
+            document.querySelectorAll('.star-background').forEach(star => star.remove());
+            
+            // Reset UI
+            updateScore();
+            updateClawPosition();
+            document.getElementById('gameOver').style.display = 'none';
+            
+            // Create new game
+            createStars();
+            createPrizes();
+        }
+
+        // Keyboard controls
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'ArrowLeft') moveLeft();
+            if (e.key === 'ArrowRight') moveRight();
+            if (e.key === ' ' || e.key === 'ArrowDown') {
+                e.preventDefault();
+                dropClaw();
+            }
+        });
+
+        // Initialize game
+        createStars();
+        createPrizes();
+    </script>
+</body>
+</html>
