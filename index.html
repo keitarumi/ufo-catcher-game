@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>UFOキャッチャーゲーム - 宇宙からの挑戦</title>
+    <script src="https://cdn.ethers.io/lib/ethers-5.7.2.umd.min.js"></script>
     <style>
         * {
             margin: 0;
@@ -351,6 +352,114 @@
             text-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
         }
 
+        /* Wallet Connection */
+        .wallet-container {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            z-index: 100;
+        }
+
+        .wallet-button {
+            padding: 12px 24px;
+            background: linear-gradient(45deg, #9333ea, #6366f1);
+            color: white;
+            border: none;
+            border-radius: 12px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .wallet-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3);
+        }
+
+        .wallet-icon {
+            width: 20px;
+            height: 20px;
+        }
+
+        .wallet-address {
+            font-size: 14px;
+            background: rgba(255, 255, 255, 0.1);
+            padding: 8px 16px;
+            border-radius: 20px;
+            backdrop-filter: blur(10px);
+        }
+
+        .wallet-modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.8);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .wallet-modal-content {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 40px;
+            border-radius: 20px;
+            text-align: center;
+            color: white;
+            max-width: 400px;
+            position: relative;
+        }
+
+        .wallet-modal h3 {
+            margin-bottom: 20px;
+            font-size: 24px;
+        }
+
+        .wallet-options {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            margin-top: 20px;
+        }
+
+        .wallet-option {
+            padding: 15px;
+            background: rgba(255, 255, 255, 0.1);
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .wallet-option:hover {
+            background: rgba(255, 255, 255, 0.2);
+            transform: translateY(-2px);
+        }
+
+        .close-modal {
+            position: absolute;
+            top: 15px;
+            right: 15px;
+            font-size: 30px;
+            cursor: pointer;
+            color: white;
+            opacity: 0.8;
+            transition: opacity 0.3s ease;
+        }
+
+        .close-modal:hover {
+            opacity: 1;
+        }
+
         /* Responsive */
         @media (max-width: 768px) {
             h1 {
@@ -374,10 +483,49 @@
                 width: 60px;
                 height: 40px;
             }
+
+            .wallet-container {
+                top: 10px;
+                right: 10px;
+            }
+
+            .wallet-button {
+                padding: 10px 20px;
+                font-size: 14px;
+            }
         }
     </style>
 </head>
 <body>
+    <!-- Wallet Connection -->
+    <div class="wallet-container">
+        <button class="wallet-button" id="walletButton" onclick="toggleWallet()">
+            <svg class="wallet-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                <rect x="3" y="6" width="18" height="12" rx="2" ry="2"></rect>
+                <path d="M18 12h.01"></path>
+            </svg>
+            <span id="walletText">Connect Wallet</span>
+        </button>
+    </div>
+
+    <!-- Wallet Modal -->
+    <div class="wallet-modal" id="walletModal">
+        <div class="wallet-modal-content">
+            <span class="close-modal" onclick="closeWalletModal()">&times;</span>
+            <h3>ウォレットを接続</h3>
+            <div class="wallet-options">
+                <div class="wallet-option" onclick="connectMetaMask()">
+                    <img src="https://upload.wikimedia.org/wikipedia/commons/3/36/MetaMask_Fox.svg" width="30" height="30" alt="MetaMask">
+                    <span>MetaMask</span>
+                </div>
+                <div class="wallet-option" onclick="connectWalletConnect()">
+                    <img src="https://walletconnect.com/walletconnect-logo.svg" width="30" height="30" alt="WalletConnect">
+                    <span>WalletConnect</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Hero Section -->
     <section class="hero">
         <div class="stars"></div>
@@ -477,8 +625,110 @@
         <div class="container">
             <h2>準備はできましたか？</h2>
             <p class="subtitle">宇宙一のUFOキャッチャーマスターを目指そう！</p>
-            <a href="ufo-catcher.html" class="play-button">ゲームを始める</a>
+            <a href="ufo-catcher.html" class="play-button" id="playButton">ゲームを始める</a>
         </div>
     </section>
+
+    <script>
+        let provider = null;
+        let signer = null;
+        let walletAddress = null;
+
+        // Check if wallet is already connected
+        window.addEventListener('load', async () => {
+            if (typeof window.ethereum !== 'undefined') {
+                try {
+                    const accounts = await window.ethereum.request({ method: 'eth_accounts' });
+                    if (accounts.length > 0) {
+                        await connectWallet(accounts[0]);
+                    }
+                } catch (error) {
+                    console.error('Error checking wallet connection:', error);
+                }
+            }
+        });
+
+        // Toggle wallet modal
+        function toggleWallet() {
+            if (walletAddress) {
+                disconnectWallet();
+            } else {
+                document.getElementById('walletModal').style.display = 'flex';
+            }
+        }
+
+        // Close wallet modal
+        function closeWalletModal() {
+            document.getElementById('walletModal').style.display = 'none';
+        }
+
+        // Connect MetaMask
+        async function connectMetaMask() {
+            if (typeof window.ethereum === 'undefined') {
+                alert('MetaMaskがインストールされていません。インストールしてください。');
+                window.open('https://metamask.io/download/', '_blank');
+                return;
+            }
+
+            try {
+                const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
+                await connectWallet(accounts[0]);
+                closeWalletModal();
+            } catch (error) {
+                console.error('MetaMask connection error:', error);
+                alert('接続に失敗しました: ' + error.message);
+            }
+        }
+
+        // Connect WalletConnect (placeholder)
+        function connectWalletConnect() {
+            alert('WalletConnect機能は準備中です。MetaMaskをご利用ください。');
+        }
+
+        // Connect wallet
+        async function connectWallet(address) {
+            provider = new ethers.providers.Web3Provider(window.ethereum);
+            signer = provider.getSigner();
+            walletAddress = address;
+
+            // Update UI
+            const walletText = document.getElementById('walletText');
+            walletText.textContent = address.slice(0, 6) + '...' + address.slice(-4);
+
+            // Store wallet address in sessionStorage
+            sessionStorage.setItem('walletAddress', walletAddress);
+
+            // Update play button to pass wallet info
+            const playButton = document.getElementById('playButton');
+            playButton.href = `ufo-catcher.html?wallet=${walletAddress}`;
+        }
+
+        // Disconnect wallet
+        function disconnectWallet() {
+            provider = null;
+            signer = null;
+            walletAddress = null;
+            
+            // Update UI
+            document.getElementById('walletText').textContent = 'Connect Wallet';
+            
+            // Clear session storage
+            sessionStorage.removeItem('walletAddress');
+            
+            // Reset play button
+            document.getElementById('playButton').href = 'ufo-catcher.html';
+        }
+
+        // Listen for account changes
+        if (window.ethereum) {
+            window.ethereum.on('accountsChanged', async (accounts) => {
+                if (accounts.length === 0) {
+                    disconnectWallet();
+                } else {
+                    await connectWallet(accounts[0]);
+                }
+            });
+        }
+    </script>
 </body>
 </html>

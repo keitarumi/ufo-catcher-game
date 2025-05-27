@@ -210,6 +210,22 @@
             box-shadow: 0 6px 20px rgba(0,0,0,0.3);
         }
 
+        .wallet-info {
+            position: absolute;
+            top: 10px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(255, 255, 255, 0.1);
+            padding: 8px 20px;
+            border-radius: 20px;
+            color: #ffd700;
+            font-size: 14px;
+            font-weight: bold;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 215, 0, 0.3);
+            display: none;
+        }
+
         button {
             padding: 10px 20px;
             font-size: 16px;
@@ -295,6 +311,9 @@
 <body>
     <div class="game-container">
         <a href="index.html" class="home-button">← ホームに戻る</a>
+        <div class="wallet-info" id="walletInfo">
+            <span id="walletAddress"></span>
+        </div>
         <div class="score-board">Score: <span id="score">0</span></div>
         <div class="timer-board" id="timerBoard">Time: <span id="timer">20</span>s</div>
         
@@ -594,10 +613,31 @@
             }
         });
 
+        // Get wallet address from URL or sessionStorage
+        function getWalletAddress() {
+            const urlParams = new URLSearchParams(window.location.search);
+            const walletFromUrl = urlParams.get('wallet');
+            const walletFromSession = sessionStorage.getItem('walletAddress');
+            
+            return walletFromUrl || walletFromSession;
+        }
+
+        // Display wallet info
+        function displayWalletInfo() {
+            const walletAddress = getWalletAddress();
+            if (walletAddress) {
+                const walletInfo = document.getElementById('walletInfo');
+                const walletAddressEl = document.getElementById('walletAddress');
+                walletAddressEl.textContent = '🦊 ' + walletAddress.slice(0, 6) + '...' + walletAddress.slice(-4);
+                walletInfo.style.display = 'block';
+            }
+        }
+
         // Initialize game
         createStars();
         createPrizes();
         startTimer();
+        displayWalletInfo();
     </script>
 </body>
 </html>
